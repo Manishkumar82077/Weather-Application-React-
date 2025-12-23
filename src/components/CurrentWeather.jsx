@@ -1,604 +1,164 @@
 import React, { useState, useRef } from "react";
-import airspeed from "../../public/airspeed.svg";
-import humidity from "../../public/humidity.svg";
-import rain from "../../public/rain.svg";
-import temperatureFeelsLike from "../../public/temperature-feels-like.svg";
-import sunrise from "../../public/sunRise.svg";
-import sunset from "../../public/sunset.svg";
-import visibility from "../../public/visibility.svg";
-import pressure from "../../public/pressure.svg";
-import DewPoint from "../../public/DewPoint.svg";
-import cloudiness from "../../public/Cloudiness.svg";
+// Import React Icons
+import { 
+  WiSunrise, WiSunset, WiStrongWind, WiHumidity, 
+  WiRain, WiThermometer, WiEye, WiBarometer, WiCloudy, WiDust 
+} from "react-icons/wi";
+import { 
+  MdSunny, MdOutlineNightlight, MdCloud, MdUmbrella, 
+  MdThunderstorm, MdAcUnit, MdFoggy, MdClose, MdInfoOutline 
+} from "react-icons/md";
 
-// Assuming getWeatherIcon is defined and imported properly elsewhere
-function getWeatherIcon(iconCode) {
+/**
+ * Maps OpenWeatherMap icon codes to React Icons
+ */
+function GetWeatherIcon({ iconCode, className }) {
   switch (iconCode) {
-    case "01d":
-      return "wb_sunny";
-    case "01n":
-      return "brightness_2";
+    case "01d": return <MdSunny className={className} color="#FFD700" />;
+    case "01n": return <MdOutlineNightlight className={className} color="#F0E68C" />;
     case "02d":
-    case "02n":
-      return "wb_cloudy";
+    case "02n": return <MdCloud className={className} color="#A9A9A9" />;
     case "03d":
-    case "03n":
-      return "cloud";
+    case "03n": return <WiCloudy className={className} color="#D3D3D3" />;
     case "04d":
-    case "04n":
-      return "cloudy";
+    case "04n": return <WiCloudy className={className} color="#808080" />;
     case "09d":
-    case "09n":
-      return "umbrella";
+    case "09n": return <MdUmbrella className={className} color="#4682B4" />;
     case "10d":
-    case "10n":
-      return "rain";
+    case "10n": return <WiRain className={className} color="#5F9EA0" />;
     case "11d":
-    case "11n":
-      return "flash_on";
+    case "11n": return <MdThunderstorm className={className} color="#DAA520" />;
     case "13d":
-    case "13n":
-      return "ac_unit";
+    case "13n": return <MdAcUnit className={className} color="#ADD8E6" />;
     case "50d":
-    case "50n":
-      return "wb_incandescent";
-    default:
-      return "wb_cloudy";
+    case "50n": return <MdFoggy className={className} color="#DCDCDC" />;
+    default: return <MdCloud className={className} />;
   }
 }
 
-function CurrentWeather({ data, loading }) {
-  const scrollRef = useRef(null); // Ref for the scrolling container
-  const [scrollLeft, setScrollLeft] = useState(0); // State to track scroll position
-
-  // State to manage visibility of details in the modal
+function CurrentWeather({ data, loading, aqiData }) {
+  const scrollRef = useRef(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [modalContent, setModalContent] = useState({});
 
-  // State to manage hover effect on detail items
-  const [hoveredItem, setHoveredItem] = useState(null);
+  if (loading) {
+    return (
+      <div className="w-full grid gap-4 md:grid-cols-2 mt-10">
+        <div className="card p-6 animate-pulse h-48 bg-zinc-900" />
+        <div className="card p-6 animate-pulse h-48 bg-zinc-900" />
+      </div>
+    );
+  }
 
-  const openModal = (content) => {
-    setModalContent(content);
+  if (!data || !data.main) return <p className="text-white">No data available</p>;
+
+  // Formatting and Logic
+  const tempCelsius = Number(data.main.temp).toFixed(1);
+  const aqiIndex = aqiData?.list?.[0]?.main?.aqi;
+  const aqiComponents = aqiData?.list?.[0]?.components;
+
+  const formatTime = (timestamp) => {
+    return new Date(timestamp * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const openModal = (item) => {
+    setModalContent(item);
     setModalVisible(true);
   };
 
-  const closeModal = () => {
-    setModalVisible(false);
-    setModalContent({});
-  };
+  // Build the list of data points with their React Icons
+  const weatherDetails = [
+    { key: "sunrise", label: "Sunrise", value: formatTime(data.sys.sunrise), icon: <WiSunrise size={32} />, detail: "Exact moment the sun appears on the horizon." },
+    { key: "sunset", label: "Sunset", value: formatTime(data.sys.sunset), icon: <WiSunset size={32} />, detail: "Exact moment the sun disappears below the horizon." },
+    { key: "wind", label: "Wind", value: `${data.wind.speed} m/s`, icon: <WiStrongWind size={32} />, detail: `Speed: ${data.wind.speed} m/s. Direction: ${data.wind.deg}°` },
+    { key: "humidity", label: "Humidity", value: `${data.main.humidity}%`, icon: <WiHumidity size={32} />, detail: "The concentration of water vapor present in the air." },
+    { key: "pressure", label: "Pressure", value: `${data.main.pressure} hPa`, icon: <WiBarometer size={32} />, detail: "Atmospheric pressure at sea level." },
+    { key: "visibility", label: "Visibility", value: `${(data.visibility / 1000).toFixed(1)} km`, icon: <WiEye size={32} />, detail: "Maximum distance at which objects can be clearly seen." },
+    { key: "feelsLike", label: "Feels like", value: `${Number(data.main.feels_like).toFixed(1)}°C`, icon: <WiThermometer size={32} />, detail: "How the temperature actually feels to the human body." },
+    { key: "clouds", label: "Cloudiness", value: `${data.clouds.all}%`, icon: <WiCloudy size={32} />, detail: "Fraction of the sky obscured by clouds." },
+  ];
 
-  // Function to handle scrolling to the left
-  const scrollLeftHandler = () => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollLeft -= 200; // Adjust scroll amount as needed
-      setScrollLeft(scrollRef.current.scrollLeft);
-    }
-  };
-
-  // Function to handle scrolling to the right
-  const scrollRightHandler = () => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollLeft += 200; // Adjust scroll amount as needed
-      setScrollLeft(scrollRef.current.scrollLeft);
-    }
-  };
-
-  // Function to convert Fahrenheit to Celsius and round to one decimal place
-  const convertToCelsius = (temp) => {
-    return ((temp - 32) * 5) / 9;
-  };
-
-  // Function to format UNIX timestamp to AM/PM time
-  const formatTime = (timestamp) => {
-    const date = new Date(timestamp * 1000);
-    let hours = date.getHours();
-    const minutes = date.getMinutes();
-    const ampm = hours >= 12 ? "PM" : "AM";
-    hours = hours % 12;
-    hours = hours ? hours : 12; // the hour '0' should be '12'
-    const strTime =
-      hours + ":" + (minutes < 10 ? "0" + minutes : minutes) + " " + ampm;
-    return strTime;
-  };
-
-  // Function to provide a weather recommendation based on temperature and weather conditions
-  const getWeatherRecommendation = (tempCelsius, weatherIcon) => {
-    if (weatherIcon.includes("rain") || weatherIcon.includes("umbrella")) {
-      return "It's rainy. Don't forget your umbrella!";
-    } else if (
-      weatherIcon.includes("snow") ||
-      weatherIcon.includes("ac_unit")
-    ) {
-      return "It's snowy. Wear warm clothes and be careful on the roads!";
-    } else if (tempCelsius < 10) {
-      return "It's cold. Wear warm clothes!";
-    } else if (tempCelsius < 20) {
-      return "It's cool. A light jacket might be enough.";
-    } else {
-      return "It's warm. Enjoy the weather!";
-    }
-  };
-
-  if (loading) {
-    return <p className="animate-pulse">Loading...</p>;
+  if (aqiIndex) {
+    weatherDetails.push({
+      key: "aqi",
+      label: "Air Quality",
+      value: `Level ${aqiIndex}`,
+      icon: <WiDust size={32} />,
+      detail: `Components (µg/m³): PM2.5: ${aqiComponents.pm2_5}, NO2: ${aqiComponents.no2}, O3: ${aqiComponents.o3}`
+    });
   }
-
-  if (!data || !data.main) {
-    return <p>No data available</p>;
-  }
-
-  const tempCelsius = convertToCelsius(data.main.temp).toFixed(1);
-  const weatherIcon = data.weather[0].icon;
-  const recommendation = getWeatherRecommendation(tempCelsius, weatherIcon);
-  const tempMinCelsius = data.main.temp_min.toFixed(1);
-  const tempMaxCelsius = data.main.temp_max.toFixed(1);
 
   return (
-    <>
-      <div className="md:mt-10 text-2xl w-full">
-        <div className="flex flex-col md:flex-row w-full">
-          <div className="w-full md:w-2/5 flex justify-center items-center flex-col order-first md:order-none p-6">
-            <div className="animate-bounce">
-              <span className="material-icons-outlined">
-                {getWeatherIcon(data.weather[0].icon)}
-              </span>
-            </div>
-
-            <h1 className="text-7xl font-bold">{data.main.temp}°C</h1>
-          </div>
-          <div className="w-full md:w-3/5 mt-6 md:mt-0 flex justify-center items-center flex-col">
+    <div className="w-full text-white mt-10">
+      {/* Top Section */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <div className="bg-[#121212] border border-[#2a2a2a] p-6 rounded-2xl flex flex-col justify-between">
+          <div className="flex justify-between">
             <div>
-              <p className="text-3xl mt-2">{data.weather[0].description}</p>
+              <p className="text-sm text-gray-400">Current Weather</p>
+              <h2 className="text-4xl font-bold">{data.name}, {data.sys.country}</h2>
+              <p className="text-lg text-gray-300 capitalize">{data.weather[0].description}</p>
             </div>
-            <div className="flex items-center mb-4">
-              <p className="text-5xl font-bold">
-                {data.name}, {data.sys.country}
-              </p>
-            </div>
-            <div className="text-3xl font-bold justify-center items-center">
-              <p>{recommendation}</p>
-            </div>
+            <GetWeatherIcon iconCode={data.weather[0].icon} className="text-6xl" />
           </div>
+          <div className="mt-6">
+            <p className="text-6xl font-bold">{tempCelsius}°C</p>
+            <p className="text-gray-400">Low: {data.main.temp_min.toFixed(1)}° | High: {data.main.temp_max.toFixed(1)}°</p>
+          </div>
+        </div>
+
+        {/* Quick Grid */}
+        <div className="bg-[#121212] border border-[#2a2a2a] p-6 rounded-2xl grid grid-cols-2 gap-4">
+          {weatherDetails.slice(0, 4).map(item => (
+            <div key={item.key} className="flex items-center gap-3">
+              <span className="text-blue-400">{item.icon}</span>
+              <div>
+                <p className="text-xs uppercase text-gray-500 font-bold">{item.label}</p>
+                <p className="text-lg font-semibold">{item.value}</p>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
-      {data.main && (
-        <div className="transparent mt-10 rounded-full shadow-sm mx-30 p-6 rounded-md flex justify-center items-center relative w-full">
-          <div
-            className="flex items-center gap-x-20 overflow h-100 w-150 overflow-hidden"
-            ref={scrollRef}
-          >
-            {[
-              {
-                key: "sunrise",
-                label: "Sunrise",
-                value: formatTime(data.sys.sunrise),
-                icon: sunrise,
-              },
-              {
-                key: "sunset",
-                label: "Sunset",
-                value: formatTime(data.sys.sunset),
-                icon: sunset,
-              },
-              {
-                key: "rain",
-                label: "Rain",
-                value: `${data.clouds.all}%`,
-                icon: rain,
-              },
-              {
-                key: "feelsLike",
-                label: "Feels like",
-                value: `${convertToCelsius(data.main.feels_like).toFixed(1)}°C`,
-                icon: temperatureFeelsLike,
-              },
-              {
-                key: "wind",
-                label: "Wind",
-                value: `${data.wind.speed} m/s`,
-                icon: airspeed,
-              },
-              {
-                key: "humidity",
-                label: "Humidity",
-                value: `${data.main.humidity}%`,
-                icon: humidity,
-              },
-              {
-                key: "visibility",
-                label: "Visibility",
-                value: `${(data.visibility / 1000).toFixed(1)} km`,
-                icon: visibility,
-              },
-              {
-                key: "pressure",
-                label: "Pressure",
-                value: `${data.main.pressure} hPa`,
-                icon: pressure,
-              },
-              {
-                key: "dewPoint",
-                label: "Dew Point",
-                value: `${convertToCelsius(data.main.dew_point).toFixed(1)}°C`,
-                icon: DewPoint,
-              },
-              {
-                key: "cloudiness",
-                label: "Cloudiness",
-                value: `${data.clouds.all}% (${data.weather[0].description})`,
-                icon: cloudiness,
-              },
-            ].map((item, index) => (
-              <div
-                key={item.key}
-                className={`flex flex-col items-center hover:scale-110 border-rounded-md justify-center p-4 shadow-lg rounded-md transition-all duration-300 transform w-24 h-24 cursor-pointer hover:bg-gray-200`}
-                onClick={() => openModal(item)}
-                onMouseEnter={() => setHoveredItem(index)}
-                onMouseLeave={() => setHoveredItem(null)}
-                style={{ width: "120px", height: "120px" }}
-              >
-                <img
-                  src={item.icon}
-                  alt={item.label}
-                  className="h-12 w-12 mb-2"
-                />
-                <p>{item.key}</p>
-                <p className="text-center">{item.value}</p>
-                {hoveredItem === index && <p className="text-center"></p>}
-              </div>
-            ))}
-          </div>
 
-          {/* Scroll buttons */}
-          <button
-            className="absolute left-0 top-1/2 transform -translate-y-1/2  bg-blue-600 border-none rounded-full p-2 text-white shadow-md cursor-pointer transition-all duration-300 hover:bg-blue-700 hover:shadow-lg"
-            onClick={scrollLeftHandler}
-          >
-            {"<"}
-          </button>
-          <button
-            className="absolute right-0 top-1/2 transform -translate-y-1/2  bg-blue-600 border-none rounded-full p-2 text-white shadow-md cursor-pointer transition-all duration-300 hover:bg-blue-700 hover:shadow-lg"
-            onClick={scrollRightHandler}
-          >
-            {">"}
-          </button>
+      {/* Horizontal Scroller Section */}
+      <div className="mt-8 bg-[#121212] border border-[#2a2a2a] p-6 rounded-2xl">
+        <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+          <MdInfoOutline /> Key Details
+        </h3>
+        <div className="flex overflow-x-auto gap-4 scrollbar-hide snap-x" ref={scrollRef}>
+          {weatherDetails.map((item) => (
+            <div
+              key={item.key}
+              onClick={() => openModal(item)}
+              className="snap-start min-w-[160px] bg-[#1a1a1a] border border-[#333] p-4 rounded-xl hover:bg-[#252525] transition cursor-pointer"
+            >
+              <div className="text-blue-400 mb-2">{item.icon}</div>
+              <p className="text-xs uppercase text-gray-500 font-bold">{item.label}</p>
+              <p className="text-lg font-semibold">{item.value}</p>
+            </div>
+          ))}
         </div>
-      )}
+      </div>
 
       {/* Modal */}
       {modalVisible && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
-            <h2 className="text-xl font-bold mb-4">{modalContent.label}</h2>
-            <p className="text-lg">{modalContent.value}</p>
-            <button
-              className="mt-4 bg-blue-500 text-white px-4 py-2 rounded-md"
-              onClick={closeModal}
-            >
-              Close
-            </button>
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-center items-center z-50 p-4">
+          <div className="bg-[#121212] border border-[#2a2a2a] p-8 rounded-3xl max-w-sm w-full shadow-2xl">
+            <div className="flex justify-between items-center mb-6">
+              <div className="text-blue-400">{modalContent.icon}</div>
+              <button onClick={() => setModalVisible(false)} className="text-gray-400 hover:text-white">
+                <MdClose size={28} />
+              </button>
+            </div>
+            <h2 className="text-2xl font-bold">{modalContent.label}</h2>
+            <p className="text-3xl font-light text-blue-300 mb-4">{modalContent.value}</p>
+            <p className="text-gray-400 leading-relaxed">{modalContent.detail}</p>
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
 
 export default CurrentWeather;
-
-// import React, { useState, useRef } from "react";
-// import airspeed from "../../public/airspeed.svg";
-// import location from "../../public/location.svg";
-// import humidity from "../../public/humidity.svg";
-// import rain from "../../public/rain.svg";
-// import temperatureFeelsLike from "../../public/temperature-feels-like.svg";
-// import sunrise from "../../public/sunRise.svg";
-// import sunset from "../../public/sunset.svg";
-// import visibility from "../../public/visibility.svg";
-// import pressure from "../../public/pressure.svg";
-// import aqi from "../../public/AQI.svg";
-// import DewPoint from "../../public/DewPoint.svg";
-// import cloudiness from "../../public/Cloudiness.svg";
-// import moonphase from "../../public/Moon Phase.svg";
-// import uvIndex from "../../public/UV Index.svg";
-
-// // Assuming getWeatherIcon is defined and imported properly elsewhere
-// function getWeatherIcon(iconCode) {
-//   switch (iconCode) {
-//     case "01d":
-//       return "wb_sunny";
-//     case "01n":
-//       return "brightness_2";
-//     case "02d":
-//     case "02n":
-//       return "wb_cloudy";
-//     case "03d":
-//     case "03n":
-//       return "cloud";
-//     case "04d":
-//     case "04n":
-//       return "cloudy";
-//     case "09d":
-//     case "09n":
-//       return "umbrella";
-//     case "10d":
-//     case "10n":
-//       return "rain";
-//     case "11d":
-//     case "11n":
-//       return "flash_on";
-//     case "13d":
-//     case "13n":
-//       return "ac_unit";
-//     case "50d":
-//     case "50n":
-//       return "wb_incandescent";
-//     default:
-//       return "wb_cloudy";
-//   }
-// }
-
-// function CurrentWeather({ data, loading }) {
-//   const scrollRef = useRef(null); // Ref for the scrolling container
-//   const [scrollLeft, setScrollLeft] = useState(0); // State to track scroll position
-
-//   // Function to handle scrolling to the left
-//   const scrollLeftHandler = () => {
-//     if (scrollRef.current) {
-//       scrollRef.current.scrollLeft -= 200; // Adjust scroll amount as needed
-//       setScrollLeft(scrollRef.current.scrollLeft);
-//     }
-//   };
-
-//   // Function to handle scrolling to the right
-//   const scrollRightHandler = () => {
-//     if (scrollRef.current) {
-//       scrollRef.current.scrollLeft += 200; // Adjust scroll amount as needed
-//       setScrollLeft(scrollRef.current.scrollLeft);
-//     }
-//   };
-
-//   // Function to convert Fahrenheit to Celsius and round to one decimal place
-//   const convertToCelsius = (temp) => {
-//     return ((temp - 32) * 5) / 9;
-//   };
-
-//   // Function to format UNIX timestamp to AM/PM time
-//   const formatTime = (timestamp) => {
-//     const date = new Date(timestamp * 1000);
-//     let hours = date.getHours();
-//     const minutes = date.getMinutes();
-//     const ampm = hours >= 12 ? "PM" : "AM";
-//     hours = hours % 12;
-//     hours = hours ? hours : 12; // the hour '0' should be '12'
-//     const strTime =
-//       hours + ":" + (minutes < 10 ? "0" + minutes : minutes) + " " + ampm;
-//     return strTime;
-//   };
-
-//   // Function to provide a weather recommendation based on temperature and weather conditions
-//   const getWeatherRecommendation = (tempCelsius, weatherIcon) => {
-//     if (weatherIcon.includes("rain") || weatherIcon.includes("umbrella")) {
-//       return "It's rainy. Don't forget your umbrella!";
-//     } else if (
-//       weatherIcon.includes("snow") ||
-//       weatherIcon.includes("ac_unit")
-//     ) {
-//       return "It's snowy. Wear warm clothes and be careful on the roads!";
-//     } else if (tempCelsius < 10) {
-//       return "It's cold. Wear warm clothes!";
-//     } else if (tempCelsius < 20) {
-//       return "It's cool. A light jacket might be enough.";
-//     } else {
-//       return "It's warm. Enjoy the weather!";
-//     }
-//   };
-
-//   if (loading) {
-//     return <p className="animate-pulse">Loading...</p>;
-//   }
-
-//   if (!data || !data.main) {
-//     return <p>No data available</p>;
-//   }
-
-//   // Add console logs to debug
-//   console.log("Weather Data: ", data);
-
-//   const tempCelsius = convertToCelsius(data.main.temp).toFixed(1);
-//   const weatherIcon = data.weather[0].icon;
-//   const recommendation = getWeatherRecommendation(tempCelsius, weatherIcon);
-//   const tempMinCelsius = convertToCelsius(data.main.temp_min).toFixed(1);
-//   const tempMaxCelsius = convertToCelsius(data.main.temp_max).toFixed(1);
-
-//   return (
-//     <>
-//       <div className="md:mt-10 text-2xl w-full">
-//         <div className="flex flex-col md:flex-row w-full">
-//           <div className="w-full md:w-2/5 flex justify-center items-center flex-col order-first md:order-none p-6">
-//             <div className="animate-bounce">
-//               <span className="material-icons-outlined">
-//                 {getWeatherIcon(data.weather[0].icon)}
-//               </span>
-//             </div>
-
-//             <h1 className="text-7xl font-bold">{tempCelsius}°C</h1>
-//             <p className="text-2xl mt-2">
-//               Min: {tempMinCelsius}°C | Max: {tempMaxCelsius}°C
-//             </p>
-//           </div>
-//           <div className="w-full md:w-3/5 mt-6 md:mt-0 flex justify-center items-center flex-col">
-//             <div>
-//               <p className="text-3xl mt-2">{data.weather[0].description}</p>
-//             </div>
-//             <div className="flex items-center mb-4">
-//               <p className="text-5xl font-bold">
-//                 {data.name}, {data.sys.country}
-//               </p>
-//             </div>
-//             <div className="text-3xl font-bold justify-center items-center">
-//               <p>{recommendation}</p>
-//             </div>
-//           </div>
-//         </div>
-//       </div>
-//       {data.main && (
-//         <div className="bg-gray-100 border mt-10 rounded-full shadow-sm mx-30 p-6 rounded-md flex justify-center items-center relative w-full">
-//           <div
-//             className="flex items-center gap-x-20 overflow-x-auto overflow-hidden"
-//             ref={scrollRef}
-//           >
-//             <div
-//               className="flex items-center"
-//               style={{
-//                 minWidth: "100px",
-//                 height: "100px",
-//               }}
-//             >
-//               <img src={sunrise} alt="Sunrise" className="w-6 h-6 mr-2" />
-//               <p className="text-lg">
-//                 Sunrise: <br />
-//                 {formatTime(data.sys.sunrise)}
-//               </p>
-//             </div>
-//             <div
-//               className="flex items-center"
-//               style={{
-//                 minWidth: "100px",
-//                 height: "100px",
-//               }}
-//             >
-//               <img src={sunset} alt="Sunset" className="w-6 h-6 mr-2" />
-//               <p className="text-lg">
-//                 Sunset: <br />
-//                 {formatTime(data.sys.sunset)}
-//               </p>
-//             </div>
-//             <div
-//               className="flex items-center"
-//               style={{
-//                 minWidth: "100px",
-//                 height: "100px",
-//               }}
-//             >
-//               <img src={rain} alt="Rain" className="w-6 h-6 mr-2" />
-//               <p className="text-lg">
-//                 Rain: <br />
-//                 {data.clouds.all}%
-//               </p>
-//             </div>
-//             <div
-//               className="flex items-center"
-//               style={{
-//                 minWidth: "150px",
-//                 height: "100px",
-//               }}
-//             >
-//               <img
-//                 src={temperatureFeelsLike}
-//                 alt="Feels Like Temperature"
-//                 className="w-6 h-6 mr-2"
-//               />
-//               <p className="text-lg">
-//                 Feels like: <br />
-//                 {convertToCelsius(data.main.feels_like).toFixed(1)}°C
-//               </p>
-//             </div>
-//             <div
-//               className="flex items-center"
-//               style={{
-//                 minWidth: "120px",
-//                 height: "100px",
-//               }}
-//             >
-//               <img src={airspeed} alt="Wind Speed" className="w-6 h-6 mr-2" />
-//               <p className="text-lg">
-//                 Wind : <br />
-//                 {data.wind.speed} m/s
-//               </p>
-//             </div>
-//             <div
-//               className="flex items-center"
-//               style={{
-//                 minWidth: "100px",
-//                 height: "100px",
-//               }}
-//             >
-//               <img src={humidity} alt="Humidity" className="w-6 h-6 mr-2" />
-//               <p className="text-lg">
-//                 Humidity: <br />
-//                 {data.main.humidity}%
-//               </p>
-//             </div>
-//             <div
-//               className="flex items-center"
-//               style={{
-//                 minWidth: "100px",
-//                 height: "100px",
-//               }}
-//             >
-//               <img src={visibility} alt="Visibility" className="w-6 h-6 mr-2" />
-//               <p className="text-lg">
-//                 Visibility: <br />
-//                 {data.visibility} m
-//               </p>
-//             </div>
-//             <div
-//               className="flex items-center"
-//               style={{
-//                 minWidth: "100px",
-//                 height: "100px",
-//               }}
-//             >
-//               <img src={pressure} alt="Pressure" className="w-6 h-6 mr-2" />
-//               <p className="text-lg">
-//                 Pressure: <br />
-//                 {data.main.pressure} hPa
-//               </p>
-//             </div>
-//             <div
-//               className="flex items-center"
-//               style={{
-//                 minWidth: "100px",
-//                 height: "100px",
-//               }}
-//             >
-//               <img src={DewPoint} alt="Dew Point" className="w-6 h-6 mr-2" />
-//               <p className="text-lg">
-//                 Dew Point: <br />
-//                 {convertToCelsius(data.main.dew_point).toFixed(1)}°C
-//               </p>
-//             </div>
-//             <div
-//               className="flex items-center"
-//               style={{
-//                 minWidth: "200px",
-//                 height: "100px",
-//               }}
-//             >
-//               <img src={cloudiness} alt="Cloudiness" className="w-6 h-6 mr-2" />
-//               <p className="text-lg">
-//                 Cloudiness: <br />
-//                 {data.clouds.all}% ({data.weather[0].description})
-//               </p>
-//             </div>
-//           </div>
-
-//           {/* Scroll buttons */}
-//           <button
-//             className="absolute left-0 top-1/2 transform -translate-y-1/2 bg-gray-300 rounded-full p-2 shadow-md"
-//             onClick={scrollLeftHandler}
-//           >
-//             {"<"}
-//           </button>
-//           <button
-//             className="absolute right-0 top-1/2 transform -translate-y-1/2 bg-gray-300 rounded-full p-2 shadow-md"
-//             onClick={scrollRightHandler}
-//           >
-//             {">"}
-//           </button>
-//         </div>
-//       )}
-//     </>
-//   );
-// }

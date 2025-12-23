@@ -1,20 +1,24 @@
-
-
 .temp-default {
-  background-color: #f0f0f0; /* Default background color */
+  background-color: #1c1c1c;
 }
 
-
-/* Example CSS for input and button styling */
-input {
-  background-color: #396b8f;
-}
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
 
-/* Hide scrollbar for IE, Edge, and Firefox */
 .scrollbar-hide {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+.hot {
+  background: radial-gradient(circle at 20% 20%, #2a2a2a, #0f0f0f);
+}
+
+.cold {
+  background: radial-gradient(circle at 80% 30%, #232323, #0c0c0c);
+}
+
+.normal {
+  background: linear-gradient(135deg, #1a1a1a, #0d0d0d);
 }

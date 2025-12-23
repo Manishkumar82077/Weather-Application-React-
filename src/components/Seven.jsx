@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
+import { OPEN_WEATHER_API_KEY } from "../config";
 
 const Seven = ({ city }) => {
   const [dailyForecast, setDailyForecast] = useState([]);
@@ -7,10 +8,10 @@ const Seven = ({ city }) => {
   const [selectedDay, setSelectedDay] = useState(null);
 
   const fetchWeather = async (lat, lon) => {
-    const apiKey = "da13201d36831242cbc1d64dc1fa4c04"; // Replace with your API key
+    if (!OPEN_WEATHER_API_KEY) return;
     try {
       const { data } = await axios.get(
-        `https://api.openweathermap.org/data/2.5/onecall?lat=${lat}&lon=${lon}&exclude=current,minutely,hourly,alerts&units=metric&appid=${apiKey}`
+        `https://api.openweathermap.org/data/2.5/onecall?lat=${lat}&lon=${lon}&exclude=current,minutely,hourly,alerts&units=metric&appid=${OPEN_WEATHER_API_KEY}`
       );
 
       setDailyForecast(data.daily);
@@ -21,10 +22,10 @@ const Seven = ({ city }) => {
 
   useEffect(() => {
     const fetchCityWeather = async () => {
-      const apiKey = "da13201d36831242cbc1d64dc1fa4c04"; // Replace with your API key
+      if (!OPEN_WEATHER_API_KEY) return;
       try {
         const { data: locationData } = await axios.get(
-          `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}`
+          `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${OPEN_WEATHER_API_KEY}`
         );
         const { lat, lon } = locationData.coord;
 
@@ -61,26 +62,27 @@ const Seven = ({ city }) => {
     <div className="relative mt-4 mx-2 sm:mx-10 px-4">
       <div className="relative overflow-hidden">
         <button
-          className="absolute left-1 sm:left-2.5 top-1/2 transform -translate-y-1/2 z-10 bg-blue-600 border-none rounded-full p-2 text-white shadow-md cursor-pointer transition-all duration-300 hover:bg-blue-700 hover:shadow-lg"
+          className="absolute left-1 sm:left-2.5 top-1/2 transform -translate-y-1/2 z-10 bg-white text-black border border-[#2a2a2a] rounded-full p-2 shadow-md cursor-pointer transition-all duration-200 hover:bg-[#f5f5f5]"
           onClick={scrollLeft}
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
           }}
+          aria-label="Scroll daily left"
         >
           &lt;
         </button>
         <div
           ref={scrollContainerRef}
-          className="flex overflow-x-scroll scrollbar-hide space-x-4 p-4"
+          className="flex overflow-x-scroll scrollbar-hide space-x-4 p-4 bg-[#1f1f1f] border border-[#2a2a2a] rounded-2xl"
           style={{ scrollBehavior: "smooth" }}
         >
           {dailyForecast.map((day, index) => (
             <div
               key={index}
               onClick={() => openModal(day)}
-              className="flex-shrink-0 border border-gray-300 rounded-lg p-4 w-36 sm:w-40 md:w-48 bg-white shadow-md cursor-pointer transition-transform transform hover:scale-105"
+              className="flex-shrink-0 border border-[#2a2a2a] rounded-xl p-4 w-36 sm:w-40 md:w-48 bg-[#121212] text-white shadow-sm cursor-pointer transition-transform transform hover:scale-105 snap-start"
             >
               <p className="text-sm sm:text-lg font-semibold">
                 {new Date(day.dt * 1000).toLocaleDateString("en-US", {
@@ -99,21 +101,22 @@ const Seven = ({ city }) => {
           ))}
         </div>
         <button
-          className="absolute right-2 sm:right-2.5 top-1/2 transform -translate-y-1/2 z-10 bg-blue-600 border-none rounded-full p-2 text-white shadow-md cursor-pointer transition-all duration-300 hover:bg-blue-700 hover:shadow-lg"
+          className="absolute right-2 sm:right-2.5 top-1/2 transform -translate-y-1/2 z-10 bg-white text-black border border-[#2a2a2a] rounded-full p-2 shadow-md cursor-pointer transition-all duration-200 hover:bg-[#f5f5f5]"
           onClick={scrollRight}
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
           }}
+          aria-label="Scroll daily right"
         >
           &gt;
         </button>
       </div>
 
       {selectedDay && (
-        <div className="fixed inset-0 bg-gray-800 bg-opacity-50 overflow-hidden flex justify-center items-center">
-          <div className="bg-white p-4  rounded-lg shadow-lg max-w-md">
+        <div className="fixed inset-0 bg-black bg-opacity-50 overflow-hidden flex justify-center items-center">
+          <div className="bg-[#121212] border border-[#2a2a2a] p-4  rounded-lg shadow-lg max-w-md text-white">
             <h2 className="text-lg font-semibold mb-4">
               {new Date(selectedDay.dt * 1000).toLocaleDateString("en-US", {
                 weekday: "long",
@@ -121,12 +124,12 @@ const Seven = ({ city }) => {
                 day: "numeric",
               })}
             </h2>
-            <p className="text-4xl font-bold text-blue-500">
+            <p className="text-4xl font-bold text-white">
               Temperature: {selectedDay.temp.day} °C
             </p>
             <p>Description: {selectedDay.weather[0].description}</p>
             <button
-              className="bg-blue-500 text-white py-2 px-4 mt-4 rounded-md hover:bg-blue-600"
+              className="bg-white text-black py-2 px-4 mt-4 rounded-md hover:bg-[#f5f5f5] border border-[#2a2a2a]"
               onClick={closeModal}
             >
               Close

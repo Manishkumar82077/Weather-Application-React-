@@ -1,16 +1,16 @@
 import React, { useState, useEffect, useRef } from "react";
 import WeatherDisplay from "./WeatherDisplay";
+import { OPEN_WEATHER_API_KEY } from "../config";
 
 const WeatherForecast = ({ city }) => {
   const [hourlyWeather, setHourlyWeather] = useState([]);
-  const [showOverflow, setShowOverflow] = useState(false);
   const [selectedWeather, setSelectedWeather] = useState(null);
   const forecastContainerRef = useRef(null);
 
   useEffect(() => {
     const fetchHourlyWeather = async () => {
-      const apiKey = "da13201d36831242cbc1d64dc1fa4c04";
-      const apiUrl = `https://api.openweathermap.org/data/2.5/forecast?q=${city}&appid=${apiKey}&units=metric`;
+      if (!OPEN_WEATHER_API_KEY) return;
+      const apiUrl = `https://api.openweathermap.org/data/2.5/forecast?q=${city}&appid=${OPEN_WEATHER_API_KEY}&units=metric`;
 
       try {
         const response = await fetch(apiUrl);
@@ -35,10 +35,6 @@ const WeatherForecast = ({ city }) => {
     fetchHourlyWeather();
   }, [city]);
 
-  const toggleOverflow = () => {
-    setShowOverflow(!showOverflow);
-  };
-
   const scrollLeft = () => {
     if (forecastContainerRef.current) {
       forecastContainerRef.current.scrollLeft -= 250;
@@ -60,68 +56,90 @@ const WeatherForecast = ({ city }) => {
   };
 
   return (
-    <div
-      className={`overflow-${
-        showOverflow ? "auto" : "hidden"
-      } whitespace-nowrap max-w-full p-5 mt-5 relative`}
-    >
+    <div className="max-w-full p-5 mt-5 relative bg-[#1f1f1f] border border-[#2a2a2a] rounded-2xl">
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <p className="text-sm text-gray-400">Next 24 hours</p>
+          <h3 className="text-lg font-semibold text-white">Hourly outlook</h3>
+        </div>
+      </div>
+      {hourlyWeather.length > 0 && (
+        <div className="w-full mb-4 grid gap-3 md:grid-cols-2 text-left">
+          {hourlyWeather.slice(0, 2).map((weather, idx) => (
+            <div
+              key={`mini-${idx}`}
+              className="bg-[#121212] border border-[#2a2a2a] rounded-xl p-4 flex items-center justify-between"
+            >
+              <div>
+                <p className="text-sm text-gray-400">
+                  {weather.time.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                </p>
+                <p className="text-lg font-semibold text-white capitalize">
+                  {weather.weatherDescription}
+                </p>
+                <p className="text-sm text-gray-300">
+                  Humidity {weather.humidity}% · Wind {weather.windSpeed} m/s
+                </p>
+              </div>
+              <div className="text-3xl font-bold text-white">
+                {weather.temperature}°C
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
       <div
         ref={forecastContainerRef}
-        className="flex flex-row items-center relative overflow-hidden"
+        className="overflow-x-auto scrollbar-hide whitespace-nowrap flex flex-row items-center relative snap-x"
       >
         {hourlyWeather.map((weather, index) => (
           <div
             key={index}
-            className="inline-block w-64 h-48 m-2.5 cursor-pointer transform transition-transform duration-200"
+            className="snap-start inline-block w-60 md:w-64 h-52 m-2.5 cursor-pointer transform transition-transform duration-200 bg-[#121212] border border-[#2a2a2a] rounded-xl shadow-sm hover:border-gray-500"
             onClick={() => handleWeatherClick(weather)}
             onMouseEnter={(e) =>
               (e.currentTarget.style.transform = "scale(1.05)")
             }
             onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
           >
-            <WeatherDisplay
-              currentTime={weather.time}
-              temperature={weather.temperature}
-            />
+            <div className="p-4 flex flex-col h-full justify-between">
+              <div className="flex items-start justify-between text-sm text-gray-300">
+                <span>{weather.time.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
+                <span className="text-gray-400">{weather.weatherDescription}</span>
+              </div>
+              <div className="text-4xl font-bold text-white">{weather.temperature}°C</div>
+              <div className="flex items-center justify-between text-sm text-gray-300">
+                <span>Humidity {weather.humidity}%</span>
+                <span>Wind {weather.windSpeed} m/s</span>
+              </div>
+            </div>
           </div>
         ))}
       </div>
-      <button
-        onClick={scrollLeft}
-        className="absolute left-2.5 top-1/2 transform -translate-y-1/2 z-10 bg-blue-600 border-none rounded-full p-2.5 text-white shadow-md cursor-pointer transition-all duration-300 hover:bg-blue-700 hover:shadow-lg"
-      >
-        {"<"}
-      </button>
-      <button
-        onClick={scrollRight}
-        className="absolute right-2.5 top-1/2 transform -translate-y-1/2 z-10 bg-blue-600 border-none rounded-full p-2.5 text-white shadow-md cursor-pointer transition-all duration-300 hover:bg-blue-700 hover:shadow-lg"
-      >
-        {">"}
-      </button>
 
       {selectedWeather && (
-        <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-7 rounded-xl shadow-lg z-20 w-4/5 max-w-lg text-center transition-opacity duration-300 opacity-100">
-          <h3 className="mb-5 text-gray-800 text-2xl font-semibold">
+        <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-[#121212] border border-[#2a2a2a] p-7 rounded-xl shadow-lg z-20 w-4/5 max-w-lg text-center transition-opacity duration-300 opacity-100">
+          <h3 className="mb-5 text-white text-2xl font-semibold">
             Weather Details
           </h3>
-          <p className="mb-3 text-lg">
+          <p className="mb-3 text-lg text-gray-200">
             <strong>Time:</strong> {selectedWeather.time.toLocaleString()}
           </p>
-          <p className="mb-3 text-lg">
+          <p className="mb-3 text-lg text-gray-200">
             <strong>Temperature:</strong> {selectedWeather.temperature}°C
           </p>
-          <p className="mb-3 text-lg">
+          <p className="mb-3 text-lg text-gray-200">
             <strong>Humidity:</strong> {selectedWeather.humidity}%
           </p>
-          <p className="mb-3 text-lg">
+          <p className="mb-3 text-lg text-gray-200">
             <strong>Wind Speed:</strong> {selectedWeather.windSpeed} m/s
           </p>
-          <p className="mb-6 text-lg">
+          <p className="mb-6 text-lg text-gray-200">
             <strong>Description:</strong> {selectedWeather.weatherDescription}
           </p>
           <button
             onClick={closePopup}
-            className="px-6 py-3 bg-green-600 text-white border-none rounded-lg cursor-pointer text-lg shadow-md transition-all duration-300 hover:bg-green-700 hover:shadow-lg"
+            className="px-6 py-3 bg-white text-black border border-[#2a2a2a] rounded-lg cursor-pointer text-lg shadow-md transition-all duration-300 hover:bg-[#f5f5f5]"
           >
             Close
           </button>
