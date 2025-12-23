@@ -2,11 +2,12 @@ import React, { useState, useRef } from "react";
 // Import React Icons
 import { 
   WiSunrise, WiSunset, WiStrongWind, WiHumidity, 
-  WiRain, WiThermometer, WiEye, WiBarometer, WiCloudy, WiDust 
+  WiRain, WiThermometer, WiBarometer, WiCloudy, WiDust 
 } from "react-icons/wi";
 import { 
   MdSunny, MdOutlineNightlight, MdCloud, MdUmbrella, 
-  MdThunderstorm, MdAcUnit, MdFoggy, MdClose, MdInfoOutline 
+  MdThunderstorm, MdAcUnit, MdFoggy, MdClose, MdInfoOutline,
+  MdVisibility // Correct icon for Visibility
 } from "react-icons/md";
 
 /**
@@ -52,7 +53,6 @@ function CurrentWeather({ data, loading, aqiData }) {
 
   if (!data || !data.main) return <p className="text-white">No data available</p>;
 
-  // Formatting and Logic
   const tempCelsius = Number(data.main.temp).toFixed(1);
   const aqiIndex = aqiData?.list?.[0]?.main?.aqi;
   const aqiComponents = aqiData?.list?.[0]?.components;
@@ -66,31 +66,29 @@ function CurrentWeather({ data, loading, aqiData }) {
     setModalVisible(true);
   };
 
-  // Build the list of data points with their React Icons
   const weatherDetails = [
     { key: "sunrise", label: "Sunrise", value: formatTime(data.sys.sunrise), icon: <WiSunrise size={32} />, detail: "Exact moment the sun appears on the horizon." },
     { key: "sunset", label: "Sunset", value: formatTime(data.sys.sunset), icon: <WiSunset size={32} />, detail: "Exact moment the sun disappears below the horizon." },
     { key: "wind", label: "Wind", value: `${data.wind.speed} m/s`, icon: <WiStrongWind size={32} />, detail: `Speed: ${data.wind.speed} m/s. Direction: ${data.wind.deg}°` },
     { key: "humidity", label: "Humidity", value: `${data.main.humidity}%`, icon: <WiHumidity size={32} />, detail: "The concentration of water vapor present in the air." },
     { key: "pressure", label: "Pressure", value: `${data.main.pressure} hPa`, icon: <WiBarometer size={32} />, detail: "Atmospheric pressure at sea level." },
-    { key: "visibility", label: "Visibility", value: `${(data.visibility / 1000).toFixed(1)} km`, icon: <WiEye size={32} />, detail: "Maximum distance at which objects can be clearly seen." },
+    { key: "visibility", label: "Visibility", value: `${(data.visibility / 1000).toFixed(1)} km`, icon: <MdVisibility size={32} />, detail: "Maximum distance at which objects can be clearly seen." },
     { key: "feelsLike", label: "Feels like", value: `${Number(data.main.feels_like).toFixed(1)}°C`, icon: <WiThermometer size={32} />, detail: "How the temperature actually feels to the human body." },
     { key: "clouds", label: "Cloudiness", value: `${data.clouds.all}%`, icon: <WiCloudy size={32} />, detail: "Fraction of the sky obscured by clouds." },
   ];
 
-  if (aqiIndex) {
+  if (aqiIndex && aqiComponents) {
     weatherDetails.push({
       key: "aqi",
       label: "Air Quality",
       value: `Level ${aqiIndex}`,
       icon: <WiDust size={32} />,
-      detail: `Components (µg/m³): PM2.5: ${aqiComponents.pm2_5}, NO2: ${aqiComponents.no2}, O3: ${aqiComponents.o3}`
+      detail: `Components (µg/m³): PM2.5: ${aqiComponents.pm2_5 || 'N/A'}, NO2: ${aqiComponents.no2 || 'N/A'}, O3: ${aqiComponents.o3 || 'N/A'}`
     });
   }
 
   return (
     <div className="w-full text-white mt-10">
-      {/* Top Section */}
       <div className="grid gap-6 md:grid-cols-2">
         <div className="bg-[#121212] border border-[#2a2a2a] p-6 rounded-2xl flex flex-col justify-between">
           <div className="flex justify-between">
@@ -107,7 +105,6 @@ function CurrentWeather({ data, loading, aqiData }) {
           </div>
         </div>
 
-        {/* Quick Grid */}
         <div className="bg-[#121212] border border-[#2a2a2a] p-6 rounded-2xl grid grid-cols-2 gap-4">
           {weatherDetails.slice(0, 4).map(item => (
             <div key={item.key} className="flex items-center gap-3">
@@ -121,7 +118,6 @@ function CurrentWeather({ data, loading, aqiData }) {
         </div>
       </div>
 
-      {/* Horizontal Scroller Section */}
       <div className="mt-8 bg-[#121212] border border-[#2a2a2a] p-6 rounded-2xl">
         <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
           <MdInfoOutline /> Key Details
@@ -141,7 +137,6 @@ function CurrentWeather({ data, loading, aqiData }) {
         </div>
       </div>
 
-      {/* Modal */}
       {modalVisible && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-center items-center z-50 p-4">
           <div className="bg-[#121212] border border-[#2a2a2a] p-8 rounded-3xl max-w-sm w-full shadow-2xl">
