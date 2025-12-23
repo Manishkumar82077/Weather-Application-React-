@@ -1,32 +1,23 @@
-import React, { useState, useEffect, useRef } from "react";
-import WeatherDisplay from "./WeatherDisplay";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { OPEN_WEATHER_API_KEY } from "../config";
+import { MdOutlineAccessTime, MdWaterDrop } from "react-icons/md";
+import PropTypes from "prop-types";
 
 const WeatherForecast = ({ city }) => {
-  const [hourlyWeather, setHourlyWeather] = useState([]);
+  const [rawForecast, setRawForecast] = useState([]);
   const [selectedWeather, setSelectedWeather] = useState(null);
   const forecastContainerRef = useRef(null);
 
   useEffect(() => {
     const fetchHourlyWeather = async () => {
-      if (!OPEN_WEATHER_API_KEY) return;
+      if (!OPEN_WEATHER_API_KEY || !city) return;
+
       const apiUrl = `https://api.openweathermap.org/data/2.5/forecast?q=${city}&appid=${OPEN_WEATHER_API_KEY}&units=metric`;
 
       try {
         const response = await fetch(apiUrl);
         const data = await response.json();
-
-        const next24Hours = data.list.slice(0, 8);
-
-        const formattedData = next24Hours.map((item) => ({
-          time: new Date(item.dt * 1000),
-          temperature: item.main.temp,
-          humidity: item.main.humidity,
-          windSpeed: item.wind.speed,
-          weatherDescription: item.weather[0].description,
-        }));
-
-        setHourlyWeather(formattedData);
+        setRawForecast(data.list || []);
       } catch (error) {
         console.error("Error fetching hourly weather data:", error);
       }
@@ -35,185 +26,115 @@ const WeatherForecast = ({ city }) => {
     fetchHourlyWeather();
   }, [city]);
 
-  const scrollLeft = () => {
-    if (forecastContainerRef.current) {
-      forecastContainerRef.current.scrollLeft -= 250;
+  const hourlyOutlook = useMemo(() => {
+    if (rawForecast.length === 0) return [];
+
+    const result = [];
+    const now = new Date();
+
+    for (let i = 0; i < 12; i++) {
+      const targetTime = new Date(now.getTime() + i * 60 * 60 * 1000);
+
+      const nextIndex = rawForecast.findIndex(
+        (b) => b.dt * 1000 > targetTime.getTime()
+      );
+
+      const prevBlock = rawForecast[nextIndex - 1] || rawForecast[0];
+      const nextBlock = rawForecast[nextIndex] || rawForecast[0];
+
+      const weight =
+        (targetTime.getTime() - prevBlock.dt * 1000) /
+        ((nextBlock.dt - prevBlock.dt) * 1000 || 1);
+
+      const interpolatedTemp =
+        prevBlock.main.temp +
+        (nextBlock.main.temp - prevBlock.main.temp) * weight;
+
+      result.push({
+        time: targetTime,
+        temperature: Math.round(interpolatedTemp),
+        humidity: prevBlock.main.humidity,
+        weatherDescription: prevBlock.weather[0].description,
+        icon: prevBlock.weather[0].icon,
+      });
     }
-  };
 
-  const scrollRight = () => {
-    if (forecastContainerRef.current) {
-      forecastContainerRef.current.scrollLeft += 250;
-    }
-  };
-
-  const handleWeatherClick = (weather) => {
-    setSelectedWeather(weather);
-  };
-
-  const closePopup = () => {
-    setSelectedWeather(null);
-  };
+    return result;
+  }, [rawForecast]);
 
   return (
-    <div className="max-w-full p-5 mt-5 relative bg-[#1f1f1f] border border-[#2a2a2a] rounded-2xl">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <p className="text-sm text-gray-400">Next 24 hours</p>
-          <h3 className="text-lg font-semibold text-white">Hourly outlook</h3>
-        </div>
+    <div className="w-full p-6 card rounded-[2.5rem] shadow-2xl overflow-hidden transition-colors duration-500">
+      <div className="flex items-center justify-between mb-6 px-2">
+        <h3 className="text-xl font-bold flex items-center gap-2">
+          <MdOutlineAccessTime className="text-blue-500" />
+          Hourly Outlook
+        </h3>
+        <span className="text-[10px] opacity-50 font-bold uppercase tracking-widest animate-pulse">
+          Swipe →
+        </span>
       </div>
-      {hourlyWeather.length > 0 && (
-        <div className="w-full mb-4 grid gap-3 md:grid-cols-2 text-left">
-          {hourlyWeather.slice(0, 2).map((weather, idx) => (
-            <div
-              key={`mini-${idx}`}
-              className="bg-[#121212] border border-[#2a2a2a] rounded-xl p-4 flex items-center justify-between"
-            >
-              <div>
-                <p className="text-sm text-gray-400">
-                  {weather.time.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
-                </p>
-                <p className="text-lg font-semibold text-white capitalize">
-                  {weather.weatherDescription}
-                </p>
-                <p className="text-sm text-gray-300">
-                  Humidity {weather.humidity}% · Wind {weather.windSpeed} m/s
-                </p>
-              </div>
-              <div className="text-3xl font-bold text-white">
-                {weather.temperature}°C
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+
       <div
         ref={forecastContainerRef}
-        className="overflow-x-auto scrollbar-hide whitespace-nowrap flex flex-row items-center relative snap-x"
+        className="overflow-x-auto pb-2 flex items-stretch scrollbar-hide snap-x snap-mandatory"
       >
-        {hourlyWeather.map((weather, index) => (
+        {hourlyOutlook.map((weather, index) => (
           <div
             key={index}
-            className="snap-start inline-block w-60 md:w-64 h-52 m-2.5 cursor-pointer transform transition-transform duration-200 bg-[#121212] border border-[#2a2a2a] rounded-xl shadow-sm hover:border-gray-500"
-            onClick={() => handleWeatherClick(weather)}
-            onMouseEnter={(e) =>
-              (e.currentTarget.style.transform = "scale(1.05)")
-            }
-            onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
+            onClick={() => setSelectedWeather(weather)}
+            className="snap-center flex-shrink-0 w-[100px] flex flex-col items-center py-4 px-2 hover:bg-current/5 cursor-pointer border-r border-current/5 last:border-r-0 transition-colors"
           >
-            <div className="p-4 flex flex-col h-full justify-between">
-              <div className="flex items-start justify-between text-sm text-gray-300">
-                <span>{weather.time.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
-                <span className="text-gray-400">{weather.weatherDescription}</span>
-              </div>
-              <div className="text-4xl font-bold text-white">{weather.temperature}°C</div>
-              <div className="flex items-center justify-between text-sm text-gray-300">
-                <span>Humidity {weather.humidity}%</span>
-                <span>Wind {weather.windSpeed} m/s</span>
-              </div>
+            <span className="text-[11px] font-bold opacity-50 mb-3">
+              {index === 0
+                ? "NOW"
+                : weather.time.toLocaleTimeString([], {
+                    hour: "numeric",
+                    hour12: true,
+                  })}
+            </span>
+
+            <img
+              src={`https://openweathermap.org/img/wn/${weather.icon}.png`}
+              alt="weather"
+              className="w-10 h-10 mb-2 filter drop-shadow-md"
+            />
+
+            <span className="text-xl font-black mb-2">
+              {weather.temperature}°
+            </span>
+
+            <div className="flex items-center gap-0.5 text-[9px] text-blue-500 font-black">
+              <MdWaterDrop size={10} />
+              {weather.humidity}%
             </div>
           </div>
         ))}
       </div>
 
       {selectedWeather && (
-        <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-[#121212] border border-[#2a2a2a] p-7 rounded-xl shadow-lg z-20 w-4/5 max-w-lg text-center transition-opacity duration-300 opacity-100">
-          <h3 className="mb-5 text-white text-2xl font-semibold">
-            Weather Details
-          </h3>
-          <p className="mb-3 text-lg text-gray-200">
-            <strong>Time:</strong> {selectedWeather.time.toLocaleString()}
-          </p>
-          <p className="mb-3 text-lg text-gray-200">
-            <strong>Temperature:</strong> {selectedWeather.temperature}°C
-          </p>
-          <p className="mb-3 text-lg text-gray-200">
-            <strong>Humidity:</strong> {selectedWeather.humidity}%
-          </p>
-          <p className="mb-3 text-lg text-gray-200">
-            <strong>Wind Speed:</strong> {selectedWeather.windSpeed} m/s
-          </p>
-          <p className="mb-6 text-lg text-gray-200">
-            <strong>Description:</strong> {selectedWeather.weatherDescription}
-          </p>
+        <div className="mt-6 p-4 bg-current/5 border border-current/10 rounded-3xl flex justify-between items-center animate-in fade-in slide-in-from-top-2">
+          <div>
+            <p className="text-[10px] opacity-50 font-black uppercase">
+              Forecast Details
+            </p>
+            <p className="text-sm font-bold text-blue-500">
+              {selectedWeather.weatherDescription}
+            </p>
+          </div>
           <button
-            onClick={closePopup}
-            className="px-6 py-3 bg-white text-black border border-[#2a2a2a] rounded-lg cursor-pointer text-lg shadow-md transition-all duration-300 hover:bg-[#f5f5f5]"
+            onClick={() => setSelectedWeather(null)}
+            className="text-xs opacity-50 hover:opacity-100 underline"
           >
-            Close
+            Dismiss
           </button>
         </div>
-      )}
-
-      {selectedWeather && (
-        <div
-          onClick={closePopup}
-          className="fixed top-0 left-0 w-full h-full bg-black bg-opacity-40 z-10"
-        />
       )}
     </div>
   );
 };
 
+WeatherForecast.propTypes = {
+  city: PropTypes.string.isRequired,
+};
+
 export default WeatherForecast;
-
-// import React, { useState, useEffect } from "react";
-// import WeatherDisplay from "./WeatherDisplay";
-
-// const WeatherForecast = ({ city }) => {
-//   const [hourlyWeather, setHourlyWeather] = useState([]);
-
-//   useEffect(() => {
-//     const fetchHourlyWeather = async () => {
-//       const apiKey = "da13201d36831242cbc1d64dc1fa4c04";
-//       const apiUrl = `https://api.openweathermap.org/data/2.5/forecast?q=${city}&appid=${apiKey}&units=metric`;
-
-//       try {
-//         const response = await fetch(apiUrl);
-//         const data = await response.json();
-
-//         // Extract hourly data for the next 24 hours (assuming data.list is an array of hourly forecasts)
-//         const next24Hours = data.list.slice(0, 8); // Adjust slice based on data structure
-
-//         // Map to keep only required properties (time, temperature)
-//         const formattedData = next24Hours.map((item) => ({
-//           time: new Date(item.dt * 1000), // Convert Unix timestamp to JS date object
-//           temperature: item.main.temp,
-//         }));
-
-//         setHourlyWeather(formattedData);
-//       } catch (error) {
-//         console.error("Error fetching hourly weather data:", error);
-//       }
-//     };
-
-//     fetchHourlyWeather();
-//   }, [city]);
-
-//   return (
-//     <div
-//       style={{
-//         overflowX: "auto",
-//         whiteSpace: "nowrap",
-//         maxWidth: "100%",
-//         padding: "20px",
-//         marginTop: "20px",
-//       }}
-//     >
-//       {hourlyWeather.map((weather, index) => (
-//         <div
-//           key={index}
-//           style={{ display: "inline-block", width: "250px", margin: "0 10px" }}
-//         >
-//           <WeatherDisplay
-//             currentTime={weather.time}
-//             temperature={weather.temperature}
-//           />
-//         </div>
-//       ))}
-//     </div>
-//   );
-// };
-
-// export default WeatherForecast;
